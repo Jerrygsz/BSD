@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Jerry's 72H RFQ Radar | Week 29</title>
+<style>
+/* ========== 全局重置 & 变量 ========== */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --mint:#A8E6CF;--mint-d:#6BC5A0;
+  --pink:#FFB7C5;--pink-d:#E8849A;
+  --lav:#C7B8EA;--lav-d:#9A86D4;
+  --yelo:#FFE5A0;--yelo-d:#E0BC5E;
+  --sky:#A0D8F1;--sky-d:#5BAFDA;
+  --coral:#FFAAA5;--coral-d:#E0736E;
+  --cream:#FFF5F0;--deep:#4A3B5C;--soft:#8B7D9B;
+  --dark:#2C2C3A;--white:#FFFFFF;
+  --font-cn:'Microsoft YaHei','PingFang SC','Hiragino Sans GB',sans-serif;
+  --font-mono:'Consolas','Courier New',monospace;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:var(--font-cn);}
+
+/* ========== PPT 容器 ========== */
+#ppt{
+  position:relative;width:auto;height:100vh;aspect-ratio:9/16;max-width:100vw;
+  margin:0 auto;overflow:hidden;background:var(--cream);
+  box-shadow:0 0 40px rgba(0,0,0,.5);
+}
+#bgCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+/* ========== 幻灯片基础 ========== */
+.slide{
+  position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;
+  opacity:0;visibility:hidden;transform:translateX(60px) scale(.95);
+  transition:opacity .5s ease,transform .5s ease,visibility .5s;
+  padding:32px 24px 60px;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.slide::-webkit-scrollbar{width:4px;}
+.slide::-webkit-scrollbar-thumb{background:var(--lav);border-radius:2px;}
+.slide.active{opacity:1;visibility:visible;transform:translateX(0) scale(1);}
+.slide.prev{transform:translateX(-60px) scale(.95);}
+
+/* 入场动画 */
+.slide.active .anim{animation:fadeUp .6s ease forwards;opacity:0;}
+.slide.active .anim:nth-child(1){animation-delay:.1s;}
+.slide.active .anim:nth-child(2){animation-delay:.2s;}
+.slide.active .anim:nth-child(3){animation-delay:.3s;}
+.slide.active .anim:nth-child(4){animation-delay:.4s;}
+.slide.active .anim:nth-child(5){animation-delay:.5s;}
+.slide.active .anim:nth-child(6){animation-delay:.6s;}
+.slide.active .anim:nth-child(7){animation-delay:.7s;}
+.slide.active .anim:nth-child(8){animation-delay:.8s;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+
+/* ========== 像素风通用组件 ========== */
+.pixel-box{
+  border:3px solid var(--dark);
+  box-shadow:4px 4px 0 0 var(--dark),inset 3px 3px 0 0 rgba(255,255,255,.4),inset -3px -3px 0 0 rgba(0,0,0,.1);
+  position:relative;
+}
+.pixel-badge{
+  display:inline-block;padding:4px 12px;border:3px solid var(--dark);
+  box-shadow:3px 3px 0 0 var(--dark);font-weight:700;font-size:13px;
+  background:var(--yelo);color:var(--dark);
+}
+.section-tag{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+  border:2px solid var(--dark);box-shadow:2px 2px 0 0 var(--dark);
+  font-size:12px;font-weight:700;color:var(--dark);margin-bottom:10px;
+}
+
+/* ========== 封面 Slide 0 ========== */
+#s0{background:linear-gradient(135deg,rgba(243,231,255,0.88) 0%,rgba(255,224,236,0.88) 50%,rgba(224,247,250,0.88) 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.cover-icon{font-size:56px;margin-bottom:8px;animation:bounce 2s ease-in-out infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+.cover-title{
+  font-size:30px;font-weight:900;color:var(--deep);line-height:1.3;
+  text-shadow:3px 3px 0 var(--pink),6px 6px 0 var(--lav-d);
+  margin-bottom:6px;letter-spacing:1px;
+}
+.cover-week{
+  font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--white);
+  background:var(--deep);padding:6px 20px;border:3px solid var(--dark);
+  box-shadow:4px 4px 0 0 var(--lav-d);margin:8px 0 16px;
+}
+.cover-sub{font-size:15px;color:var(--soft);line-height:1.6;max-width:280px;font-weight:600;}
+.cover-deco{display:flex;gap:8px;margin-top:24px;}
+.cover-deco span{width:16px;height:16px;border:2px solid var(--dark);box-shadow:2px 2px 0 0 rgba(0,0,0,.2);}
+.scroll-hint{position:absolute;bottom:20px;font-size:12px;color:var(--soft);animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.4;}50%{opacity:1;}}
+
+/* ========== 统计数字 Slide 1 ========== */
+#s1{background:linear-gradient(180deg,rgba(232,245,233,0.85) 0%,rgba(255,245,240,0.85) 100%);}
+.slide-title{font-size:20px;font-weight:900;color:var(--deep);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.slide-title .icon{font-size:24px;}
+.stat-hero{text-align:center;padding:20px;margin-bottom:16px;background:var(--mint);border-radius:0;}
+.stat-hero .num{font-family:var(--font-mono);font-size:48px;font-weight:900;color:var(--dark);line-height:1;}
+.stat-hero .lbl{font-size:13px;color:var(--deep);margin-top:4px;font-weight:600;}
+.compare-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.compare-card{padding:12px 14px;border-radius:0;}
+.compare-card.news{background:var(--sky);}
+.compare-card.rfq{background:var(--mint);}
+.compare-card .ctitle{font-size:13px;font-weight:800;color:var(--dark);margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.compare-card .citems{font-size:11px;color:var(--deep);line-height:1.5;}
+.vs-line{text-align:center;font-family:var(--font-mono);font-size:14px;font-weight:900;color:var(--coral-d);padding:2px 0;}
+.highlight-card{padding:14px;background:var(--yelo);}
+.highlight-card .htag{font-size:12px;font-weight:800;color:var(--coral-d);margin-bottom:6px;}
+.highlight-card .htext{font-size:15px;font-weight:800;color:var(--dark);line-height:1.4;}
+.highlight-card .hsub{font-size:12px;color:var(--deep);margin-top:4px;}
+
+/* ========== 品牌排行 Slide 2 ========== */
+#s2{background:linear-gradient(180deg,rgba(255,240,245,0.85) 0%,rgba(255,245,240,0.85) 100%);}
+.brand-list{display:flex;flex-direction:column;gap:4px;}
+.brand-row{
+  display:flex;align-items:center;gap:8px;padding:5px 0;
+  opacity:0;transform:translateX(-20px);
+}
+.slide.active .brand-row{animation:slideIn .4s ease forwards;}
+.slide.active .brand-row:nth-child(1){animation-delay:.3s;}
+.slide.active .brand-row:nth-child(2){animation-delay:.35s;}
+.slide.active .brand-row:nth-child(3){animation-delay:.4s;}
+.slide.active .brand-row:nth-child(4){animation-delay:.45s;}
+.slide.active .brand-row:nth-child(5){animation-delay:.5s;}
+.slide.active .brand-row:nth-child(6){animation-delay:.55s;}
+.slide.active .brand-row:nth-child(7){animation-delay:.6s;}
+.slide.active .brand-row:nth-child(8){animation-delay:.65s;}
+.slide.active .brand-row:nth-child(9){animation-delay:.7s;}
+.slide.active .brand-row:nth-child(10){animation-delay:.75s;}
+.slide.active .brand-row:nth-child(11){animation-delay:.8s;}
+.slide.active .brand-row:nth-child(12){animation-delay:.85s;}
+.slide.active .brand-row:nth-child(13){animation-delay:.9s;}
+.slide.active .brand-row:nth-child(14){animation-delay:.95s;}
+@keyframes slideIn{to{opacity:1;transform:translateX(0);}}
+.brand-rank{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:13px;font-weight:900;color:var(--white);
+  border:2px solid var(--dark);box-shadow:2px 2px 0 0 var(--dark);flex-shrink:0;
+}
+.brand-rank.r1{background:var(--coral-d);}
+.brand-rank.r3{background:var(--yelo-d);}
+.brand-rank.r4{background:var(--sky-d);}
+.brand-rank.r6{background:var(--mint-d);}
+.brand-rank.r9{background:var(--lav-d);}
+.brand-rank.r13{background:var(--soft);}
+.brand-info{flex:1;min-width:0;}
+.brand-name{font-size:12px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.brand-bar-wrap{height:14px;background:rgba(0,0,0,.08);border:1px solid var(--dark);margin-top:2px;position:relative;}
+.brand-bar{height:100%;transition:width .8s ease .3s;position:relative;}
+.brand-bar.b1{background:var(--coral);}
+.brand-bar.b3{background:var(--yelo);}
+.brand-bar.b4{background:var(--sky);}
+.brand-bar.b6{background:var(--mint);}
+.brand-bar.b9{background:var(--lav);}
+.brand-bar.b13{background:var(--soft);}
+.brand-val{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--deep);white-space:nowrap;}
+.brand-val .cnt{font-size:13px;color:var(--dark);}
+.signal-box{margin-top:10px;padding:10px 12px;background:var(--pink);}
+.signal-box .stitle{font-size:12px;font-weight:800;color:var(--coral-d);margin-bottom:4px;}
+.signal-box .stext{font-size:11px;color:var(--deep);line-height:1.5;}
+
+/* ========== 型号排行 Slide 3 ========== */
+#s3{background:linear-gradient(180deg,rgba(240,255,244,0.85) 0%,rgba(255,245,240,0.85) 100%);}
+.part-list{display:flex;flex-direction:column;gap:6px;}
+.part-card{padding:8px 10px;display:flex;align-items:flex-start;gap:8px;}
+.part-card.p1{background:var(--yelo);}
+.part-card.p2{background:var(--mint);}
+.part-card.p6{background:var(--sky);}
+.part-rank{
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:11px;font-weight:900;color:var(--white);
+  border:2px solid var(--dark);flex-shrink:0;
+}
+.part-rank.pr1{background:var(--coral-d);}
+.part-rank.pr2{background:var(--yelo-d);}
+.part-rank.pr6{background:var(--lav-d);}
+.part-info{flex:1;min-width:0;}
+.part-model{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--dark);}
+.part-app{font-size:10px;color:var(--deep);margin-top:2px;line-height:1.4;}
+.part-cnt{
+  font-family:var(--font-mono);font-size:18px;font-weight:900;color:var(--dark);
+  flex-shrink:0;line-height:1;
+}
+.part-cnt small{font-size:10px;font-weight:600;}
+.note-box{margin-top:10px;padding:10px 12px;background:var(--lav);}
+.note-box .ntitle{font-size:12px;font-weight:800;color:var(--lav-d);margin-bottom:4px;}
+.note-box .ntext{font-size:11px;color:var(--deep);line-height:1.5;}
+.note-box .ntext strong{color:var(--dark);}
+
+/* ========== 行业分析 Slide 4 ========== */
+#s4{background:linear-gradient(180deg,rgba(232,234,246,0.85) 0%,rgba(255,245,240,0.85) 100%);}
+.ind-block{padding:12px 14px;margin-bottom:10px;}
+.ind-block.ind1{background:var(--sky);}
+.ind-block.ind2{background:var(--coral);}
+.ind-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.ind-num{width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:12px;font-weight:900;color:var(--white);background:var(--dark);border:2px solid var(--dark);}
+.ind-title{font-size:14px;font-weight:800;color:var(--dark);}
+.ind-brands{font-size:11px;color:var(--deep);font-weight:600;margin-bottom:6px;}
+.ind-model{background:rgba(255,255,255,.5);padding:4px 8px;margin:3px 0;border-left:3px solid var(--dark);}
+.ind-model .mn{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--dark);}
+.ind-model .md{font-size:10px;color:var(--deep);}
+.ind-note{font-size:11px;color:var(--deep);margin-top:4px;font-weight:600;line-height:1.4;}
+
+/* ========== 行业分析2 Slide 5 ========== */
+#s5{background:linear-gradient(180deg,rgba(255,243,224,0.85) 0%,rgba(255,245,240,0.85) 100%);}
+.conn-highlight{padding:10px 12px;background:var(--yelo);margin-bottom:10px;}
+.conn-highlight .ctitle{font-size:14px;font-weight:900;color:var(--coral-d);}
+.conn-highlight .ctext{font-size:11px;color:var(--deep);line-height:1.5;margin-top:4px;}
+.arrow-flow{text-align:center;font-size:13px;font-weight:800;color:var(--dark);padding:6px;margin:4px 0;}
+.arrow-flow .from{color:var(--soft);}
+.arrow-flow .arrow{color:var(--coral-d);margin:0 6px;}
+.arrow-flow .to{color:var(--dark);}
+
+/* ========== 市场变化 Slide 6 ========== */
+#s6{background:linear-gradient(180deg,rgba(252,228,236,0.85) 0%,rgba(255,245,240,0.85) 100%);}
+.change-card{padding:12px 14px;margin-bottom:10px;}
+.change-card.c1{background:var(--coral);}
+.change-card.c2{background:var(--yelo);}
+.change-card.c3{background:var(--lav);}
+.change-num{font-family:var(--font-mono);font-size:28px;font-weight:900;color:rgba(74,59,92,.2);position:absolute;top:4px;right:10px;}
+.change-card{position:relative;}
+.change-title{font-size:14px;font-weight:800;color:var(--dark);margin-bottom:4px;}
+.change-text{font-size:11px;color:var(--deep);line-height:1.5;}
+.change-text strong{color:var(--dark);}
+
+/* ========== Insight Slide 7 ========== */
+#s7{background:linear-gradient(180deg,rgba(237,231,246,0.85) 0%,rgba(252,228,236,0.85) 100%);}
+.insight-hero{padding:16px;margin-bottom:12px;background:var(--lav);text-align:center;}
+.insight-hero .ihi{font-size:32px;margin-bottom:6px;}
+.insight-hero .iht{font-size:18px;font-weight:900;color:var(--dark);line-height:1.3;}
+.insight-list{display:flex;flex-direction:column;gap:8px;}
+.insight-item{padding:10px 12px;display:flex;gap:8px;align-items:flex-start;}
+.insight-item.ii1{background:var(--mint);}
+.insight-item.ii2{background:var(--pink);}
+.insight-item.ii3{background:var(--sky);}
+.insight-item.ii4{background:var(--yelo);}
+.insight-dot{width:12px;height:12px;border:2px solid var(--dark);flex-shrink:0;margin-top:2px;}
+.insight-item.ii1 .insight-dot{background:var(--mint-d);}
+.insight-item.ii2 .insight-dot{background:var(--pink-d);}
+.insight-item.ii3 .insight-dot{background:var(--sky-d);}
+.insight-item.ii4 .insight-dot{background:var(--yelo-d);}
+.insight-text{font-size:12px;color:var(--deep);line-height:1.5;}
+.insight-text strong{color:var(--dark);}
+.insight-quote{margin-top:12px;padding:14px;background:var(--deep);text-align:center;}
+.insight-quote .q1{font-size:13px;color:var(--mint);font-weight:700;margin-bottom:4px;}
+.insight-quote .q2{font-size:13px;color:var(--pink);font-weight:700;margin-bottom:4px;}
+.insight-quote .q3{font-size:12px;color:var(--yelo);font-weight:600;}
+
+/* ========== 导航 ========== */
+#navDots{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10;}
+.nav-dot{width:8px;height:8px;background:rgba(74,59,92,.25);border:1px solid var(--dark);cursor:pointer;transition:all .3s;}
+.nav-dot.active{background:var(--coral-d);transform:scale(1.3);}
+#slideCounter{position:absolute;top:12px;right:16px;font-family:var(--font-mono);font-size:11px;color:var(--soft);z-index:10;font-weight:700;}
+#navArrows{position:absolute;bottom:16px;width:100%;display:flex;justify-content:space-between;padding:0 12px;z-index:10;pointer-events:none;}
+.nav-arrow{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.7);border:2px solid var(--dark);box-shadow:2px 2px 0 0 var(--dark);cursor:pointer;pointer-events:auto;font-size:14px;font-weight:900;color:var(--dark);transition:all .2s;}
+.nav-arrow:active{transform:translate(2px,2px);box-shadow:0 0 0 0 var(--dark);}
+.nav-arrow.disabled{opacity:.3;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="ppt">
+  <canvas id="bgCanvas"></canvas>
+  <div id="slideCounter">1 / 8</div>
+  <div id="navDots"></div>
+  <div id="navArrows">
+    <div class="nav-arrow" id="prevBtn">◀</div>
+    <div class="nav-arrow" id="nextBtn">▶</div>
+  </div>
+
+  <!-- Slide 0: 封面 -->
+  <div class="slide active" id="s0">
+    <div class="cover-icon anim">📊</div>
+    <div class="cover-title anim">Jerry's 72H<br>RFQ Radar</div>
+    <div class="cover-week anim">Week 29</div>
+    <div class="cover-sub anim">503条RFQ，市场真正采购的是什么？</div>
+    <div class="cover-deco anim">
+      <span style="background:var(--mint)"></span>
+      <span style="background:var(--pink)"></span>
+      <span style="background:var(--lav)"></span>
+      <span style="background:var(--yelo)"></span>
+      <span style="background:var(--sky)"></span>
+    </div>
+    <div class="scroll-hint">点击 / 滑动 →</div>
+  </div>
+
+  <!-- Slide 1: 概览 -->
+  <div class="slide" id="s1">
+    <div class="slide-title anim"><span class="icon">📋</span>72小时市场扫描</div>
+    <div class="pixel-box stat-hero anim">
+      <div class="num">503</div>
+      <div class="lbl">条电子元器件 RFQ 分析</div>
+    </div>
+    <div class="compare-wrap">
+      <div class="pixel-box compare-card news anim">
+        <div class="ctitle">📰 行业新闻焦点</div>
+        <div class="citems">AI服务器 · HBM · 先进封装 · 算力基础设施</div>
+      </div>
+      <div class="vs-line anim">▼ ▼ ▼</div>
+      <div class="pixel-box compare-card rfq anim">
+        <div class="ctitle">📡 RFQ 真实需求</div>
+        <div class="citems">制造业进入订单执行阶段<br>采购重点从核心芯片扩展到完整 BOM</div>
+      </div>
+    </div>
+    <div class="pixel-box highlight-card anim">
+      <div class="htag">⚡ 本期最大变化</div>
+      <div class="htext">TE Connectivity 首次与 TI 并列第一</div>
+      <div class="hsub">制造业进入 BOM 执行阶段</div>
+    </div>
+  </div>
+
+  <!-- Slide 2: 品牌排行 -->
+  <div class="slide" id="s2">
+    <div class="slide-title anim"><span class="icon">📈</span>品牌需求排行 Top 15</div>
+    <div class="brand-list">
+      <div class="brand-row"><div class="brand-rank r1">1</div><div class="brand-info"><div class="brand-name">TE Connectivity</div><div class="brand-bar-wrap"><div class="brand-bar b1" style="width:100%"></div></div></div><div class="brand-val"><span class="cnt">42</span> 8.35%</div></div>
+      <div class="brand-row"><div class="brand-rank r1">1</div><div class="brand-info"><div class="brand-name">TI</div><div class="brand-bar-wrap"><div class="brand-bar b1" style="width:100%"></div></div></div><div class="brand-val"><span class="cnt">42</span> 8.35%</div></div>
+      <div class="brand-row"><div class="brand-rank r3">3</div><div class="brand-info"><div class="brand-name">ST</div><div class="brand-bar-wrap"><div class="brand-bar b3" style="width:69%"></div></div></div><div class="brand-val"><span class="cnt">29</span> 5.77%</div></div>
+      <div class="brand-row"><div class="brand-rank r4">4</div><div class="brand-info"><div class="brand-name">Infineon</div><div class="brand-bar-wrap"><div class="brand-bar b4" style="width:36%"></div></div></div><div class="brand-val"><span class="cnt">15</span> 2.98%</div></div>
+      <div class="brand-row"><div class="brand-rank r4">5</div><div class="brand-info"><div class="brand-name">Microchip</div><div class="brand-bar-wrap"><div class="brand-bar b4" style="width:31%"></div></div></div><div class="brand-val"><span class="cnt">13</span> 2.58%</div></div>
+      <div class="brand-row"><div class="brand-rank r6">6</div><div class="brand-info"><div class="brand-name">Maxim</div><div class="brand-bar-wrap"><div class="brand-bar b6" style="width:21%"></div></div></div><div class="brand-val"><span class="cnt">9</span> 1.79%</div></div>
+      <div class="brand-row"><div class="brand-rank r6">6</div><div class="brand-info"><div class="brand-name">Lite-On</div><div class="brand-bar-wrap"><div class="brand-bar b6" style="width:21%"></div></div></div><div class="brand-val"><span class="cnt">9</span> 1.79%</div></div>
+      <div class="brand-row"><div class="brand-rank r6">6</div><div class="brand-info"><div class="brand-name">Molex</div><div class="brand-bar-wrap"><div class="brand-bar b6" style="width:21%"></div></div></div><div class="brand-val"><span class="cnt">9</span> 1.79%</div></div>
+      <div class="brand-row"><div class="brand-rank r9">9</div><div class="brand-info"><div class="brand-name">NXP</div><div class="brand-bar-wrap"><div class="brand-bar b9" style="width:19%"></div></div></div><div class="brand-val"><span class="cnt">8</span> 1.59%</div></div>
+      <div class="brand-row"><div class="brand-rank r9">9</div><div class="brand-info"><div class="brand-name">ADI</div><div class="brand-bar-wrap"><div class="brand-bar b9" style="width:19%"></div></div></div><div class="brand-val"><span class="cnt">8</span> 1.59%</div></div>
+      <div class="brand-row"><div class="brand-rank r9">9</div><div class="brand-info"><div class="brand-name">Vishay</div><div class="brand-bar-wrap"><div class="brand-bar b9" style="width:19%"></div></div></div><div class="brand-val"><span class="cnt">8</span> 1.59%</div></div>
+      <div class="brand-row"><div class="brand-rank r9">9</div><div class="brand-info"><div class="brand-name">onsemi</div><div class="brand-bar-wrap"><div class="brand-bar b9" style="width:19%"></div></div></div><div class="brand-val"><span class="cnt">8</span> 1.59%</div></div>
+      <div class="brand-row"><div class="brand-rank r13">13</div><div class="brand-info"><div class="brand-name">Aptiv</div><div class="brand-bar-wrap"><div class="brand-bar b13" style="width:14%"></div></div></div><div class="brand-val"><span class="cnt">6</span> 1.19%</div></div>
+      <div class="brand-row"><div class="brand-rank r13">13</div><div class="brand-info"><div class="brand-name">Amphenol</div><div class="brand-bar-wrap"><div class="brand-bar b13" style="width:14%"></div></div></div><div class="brand-val"><span class="cnt">6</span> 1.19%</div></div>
+    </div>
+    <div class="pixel-box signal-box anim">
+      <div class="stitle">🔔 市场信号</div>
+      <div class="stext">连接器重新回到采购中心！TE、Molex、Amphenol、Aptiv 同步活跃，市场需求正从<strong>芯片采购 → 整机BOM执行</strong>转变。</div>
+    </div>
+  </div>
+
+  <!-- Slide 3: 型号排行 -->
+  <div class="slide" id="s3">
+    <div class="slide-title anim"><span class="icon">🔥</span>重复型号排行 Top 10</div>
+    <div class="part-list">
+      <div class="pixel-box part-card p1 anim"><div class="part-rank pr1">1</div><div class="part-info"><div class="part-model">2-179228-2</div><div class="part-app">TE连接器 · 工业设备/汽车线束连接</div></div><div class="part-cnt">5<small>次</small></div></div>
+      <div class="pixel-box part-card p2 anim"><div class="part-rank pr2">2</div><div class="part-info"><div class="part-model">175964-2</div><div class="part-app">TE连接器 · 汽车及工业连接应用</div></div><div class="part-cnt">4<small>次</small></div></div>
+      <div class="pixel-box part-card p2 anim"><div class="part-rank pr2">2</div><div class="part-info"><div class="part-model">SHT40-AD1B-R2</div><div class="part-app">Sensirion 数字温湿度传感器 · 环境监测</div></div><div class="part-cnt">4<small>次</small></div></div>
+      <div class="pixel-box part-card p2 anim"><div class="part-rank pr2">2</div><div class="part-info"><div class="part-model">PCF85063ATL/1,118</div><div class="part-app">NXP RTC 实时时钟 · 工业控制/消费电子</div></div><div class="part-cnt">4<small>次</small></div></div>
+      <div class="pixel-box part-card p2 anim"><div class="part-rank pr2">2</div><div class="part-info"><div class="part-model">AT90CAN32-16AU</div><div class="part-app">Microchip AVR CAN MCU · 汽车电子/工业通信</div></div><div class="part-cnt">4<small>次</small></div></div>
+      <div class="pixel-box part-card p6 anim"><div class="part-rank pr6">6</div><div class="part-info"><div class="part-model">65240-004LF</div><div class="part-app">FCI连接器 · 工业及通信设备</div></div><div class="part-cnt">3<small>次</small></div></div>
+      <div class="pixel-box part-card p6 anim"><div class="part-rank pr6">6</div><div class="part-info"><div class="part-model">CAT6219-330TDGT3</div><div class="part-app">onsemi 电源管理IC · 电源转换/便携设备</div></div><div class="part-cnt">3<small>次</small></div></div>
+      <div class="pixel-box part-card p6 anim"><div class="part-rank pr6">6</div><div class="part-info"><div class="part-model">TLE8209-2EE</div><div class="part-app">Infineon 电机驱动IC · 汽车执行器/工业电机</div></div><div class="part-cnt">3<small>次</small></div></div>
+      <div class="pixel-box part-card p6 anim"><div class="part-rank pr6">6</div><div class="part-info"><div class="part-model">74HC40103D</div><div class="part-app">Nexperia 逻辑芯片 · 工业控制/通用数字电路</div></div><div class="part-cnt">3<small>次</small></div></div>
+      <div class="pixel-box part-card p6 anim"><div class="part-rank pr6">6</div><div class="part-info"><div class="part-model">33472-2001</div><div class="part-app">Molex 连接器 · 工业及消费电子连接</div></div><div class="part-cnt">3<small>次</small></div></div>
+    </div>
+    <div class="pixel-box note-box anim">
+      <div class="ntitle">🔍 型号观察</div>
+      <div class="ntext">Top10 没有出现十几次以上的超级热门型号。市场仍是<strong>多项目、多型号、小批量采购</strong>，与2021年缺货时期集中抢料完全不同。当前机会来自：<strong>库存覆盖广度 · 品牌覆盖能力 · 快速匹配能力</strong>。</div>
+    </div>
+  </div>
+
+  <!-- Slide 4: 行业分析 Part 1 -->
+  <div class="slide" id="s4">
+    <div class="slide-title anim"><span class="icon">🏭</span>RFQ 透露的行业变化 (1)</div>
+    <div class="pixel-box ind-block ind1 anim">
+      <div class="ind-head"><div class="ind-num">①</div><div class="ind-title">工业控制：最大需求来源</div></div>
+      <div class="ind-brands">代表品牌：TI · ST · Microchip · Infineon</div>
+      <div class="ind-model"><div class="mn">AT90CAN32-16AU</div><div class="md">CAN通信MCU · 汽车控制/工业网络设备</div></div>
+      <div class="ind-model"><div class="mn">PCF85063ATL/1,118</div><div class="md">RTC时钟芯片 · 工业控制板/仪器设备</div></div>
+      <div class="ind-model"><div class="mn">74HC40103D</div><div class="md">逻辑控制器件 · 工业控制/通用电子设计</div></div>
+      <div class="ind-note">工业自动化、设备制造、控制系统仍是 RFQ 主要来源</div>
+    </div>
+    <div class="pixel-box ind-block ind2 anim">
+      <div class="ind-head"><div class="ind-num">②</div><div class="ind-title">汽车电子：需求持续释放</div></div>
+      <div class="ind-model"><div class="mn">TLE8209-2EE</div><div class="md">Infineon 电机驱动IC · 座椅/车窗/执行器控制</div></div>
+      <div class="ind-model"><div class="mn">AT90CAN32-16AU</div><div class="md">CAN MCU · 汽车电子控制网络</div></div>
+      <div class="ind-brands" style="margin-top:6px;">TE · Aptiv · Amphenol · Molex</div>
+      <div class="ind-note">覆盖：汽车线束 · ECU连接 · 电源连接 · 高可靠连接系统<br>汽车项目仍处于持续量产推进阶段</div>
+    </div>
+  </div>
+
+  <!-- Slide 5: 行业分析 Part 2 -->
+  <div class="slide" id="s5">
+    <div class="slide-title anim"><span class="icon">🏭</span>RFQ 透露的行业变化 (2)</div>
+    <div class="pixel-box conn-highlight anim">
+      <div class="ctitle">③ 连接器：本周最大变化！</div>
+      <div class="ctext">过去 RFQ 集中在 MCU/MOSFET/模拟IC/电源芯片，本期 TE、Molex、Amphenol、Aptiv 同时进入高排名。</div>
+    </div>
+    <div class="arrow-flow anim">
+      <span class="from">芯片采购</span><span class="arrow">→</span><span class="to">整机BOM执行</span>
+    </div>
+    <div class="pixel-box ind-block anim" style="background:var(--mint);">
+      <div class="ind-head"><div class="ind-num">④</div><div class="ind-title">电源管理：保持稳定</div></div>
+      <div class="ind-model"><div class="mn">CAT6219-330TDGT3</div><div class="md">LDO电源管理芯片 · 消费电子/工业设备供电</div></div>
+      <div class="ind-note">Infineon · Vishay · Maxim 保持稳定需求<br>电源是所有电子设备的基础需求</div>
+    </div>
+    <div class="pixel-box ind-block anim" style="background:var(--pink);">
+      <div class="ind-head"><div class="ind-num">⑤</div><div class="ind-title">传感器：细分市场活跃</div></div>
+      <div class="ind-model"><div class="mn">SHT40-AD1B-R2</div><div class="md">Sensirion 温湿度传感器</div></div>
+      <div class="ind-note">应用：工业环境监测 · 智能家居 · HVAC系统<br>重复出现4次，传感器类项目有持续采购</div>
+    </div>
+    <div class="pixel-box note-box anim" style="background:var(--yelo);">
+      <div class="ntitle" style="color:var(--coral-d)">💡 关键判断</div>
+      <div class="ntext">连接器不是研发早期物料。当连接器需求明显增加时，往往代表<strong>项目已进入生产准备或整机装配阶段</strong>。</div>
+    </div>
+  </div>
+
+  <!-- Slide 6: 三大市场变化 -->
+  <div class="slide" id="s6">
+    <div class="slide-title anim"><span class="icon">📌</span>本周三个明显市场变化</div>
+    <div class="pixel-box change-card c1 anim">
+      <div class="change-num">01</div>
+      <div class="change-title">TE 首次追平 TI</div>
+      <div class="change-text">TI 长期占据 RFQ 第一，本周 <strong>TE = TI</strong>。市场采购逻辑正在变化：<strong>从单纯芯片补库 → 转向整机 BOM 执行</strong>。</div>
+    </div>
+    <div class="pixel-box change-card c2 anim">
+      <div class="change-num">02</div>
+      <div class="change-title">连接器需求明显提升</div>
+      <div class="change-text">连接器不是最先进入采购环节的物料。它的大量出现，意味着<strong>前期设计已完成，项目正在进入生产阶段</strong>。</div>
+    </div>
+    <div class="pixel-box change-card c3 anim">
+      <div class="change-num">03</div>
+      <div class="change-title">AI 仍未直接反映在公开 RFQ</div>
+      <div class="change-text">AI 供应链采购更多发生在 <strong>GPU / HBM / 先进封装 / 服务器 ODM 框架采购</strong>。公开 RFQ 更多反映<strong>工业、汽车、电源、连接器</strong>等制造执行层。</div>
+    </div>
+  </div>
+
+  <!-- Slide 7: Jerry's Insight -->
+  <div class="slide" id="s7">
+    <div class="slide-title anim"><span class="icon">🧠</span>Jerry's Insight</div>
+    <div class="pixel-box insight-hero anim">
+      <div class="ihi">📦</div>
+      <div class="iht">制造业订单正在兑现</div>
+    </div>
+    <div class="insight-list">
+      <div class="pixel-box insight-item ii1 anim">
+        <div class="insight-dot"></div>
+        <div class="insight-text"><strong>连接器需求回升是最大变化</strong>。TE 首次与 TI 并列第一，Molex、Amphenol、Aptiv 同步活跃，市场正从"芯片采购阶段"进入"整机装配和量产执行阶段"。</div>
+      </div>
+      <div class="pixel-box insight-item ii2 anim">
+        <div class="insight-dot"></div>
+        <div class="insight-text"><strong>重复型号依然分散</strong>，没有出现集中抢货。当前市场不是缺货驱动，而是<strong>项目驱动 + 正常补库 + 订单执行</strong>。</div>
+      </div>
+      <div class="pixel-box insight-item ii3 anim">
+        <div class="insight-dot"></div>
+        <div class="insight-text">新闻关注 AI 的<strong>未来</strong>。RFQ 反映制造业的<strong>现在</strong>。</div>
+      </div>
+      <div class="pixel-box insight-item ii4 anim">
+        <div class="insight-dot"></div>
+        <div class="insight-text">贸易商真正需要寻找的机会，往往<strong>藏在这两者之间</strong>。</div>
+      </div>
+    </div>
+    <div class="pixel-box insight-quote anim">
+      <div class="q1">📰 新闻关注 AI 的未来</div>
+      <div class="q2">📡 RFQ 反映制造业的现在</div>
+      <div class="q3">💼 机会藏在两者之间</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ========== Canvas 动态背景：像素风电子元器件 ==========
+(function(){
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  const ppt = document.getElementById('ppt');
+  let W, H;
+
+  function resize(){
+    const rect = ppt.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    W = canvas.width;
+    H = canvas.height;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // 马卡龙色系
+  const COLORS = {
+    mint:'#A8E6CF', mintD:'#6BC5A0',
+    pink:'#FFB7C5', pinkD:'#E8849A',
+    lav:'#C7B8EA', lavD:'#9A86D4',
+    yelo:'#FFE5A0', yeloD:'#E0BC5E',
+    sky:'#A0D8F1', skyD:'#5BAFDA',
+    coral:'#FFAAA5', coralD:'#E0736E',
+    silver:'#D0D0D0', silverD:'#A0A0A0',
+    dark:'#4A3B5C', white:'#FFFFFF'
+  };
+
+  // 像素绘图函数
+  function px(x, y, w, h, color){
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.ceil(w), Math.ceil(h));
+  }
+
+  // 绘制 IC 芯片
+  function drawIC(x, y, s, color, colorD){
+    // 引脚
+    px(x+1*s, y+6*s, 1*s, 1.5*s, COLORS.silver);
+    px(x+3*s, y+6*s, 1*s, 1.5*s, COLORS.silver);
+    px(x+5*s, y+6*s, 1*s, 1.5*s, COLORS.silver);
+    px(x+7*s, y+6*s, 1*s, 1.5*s, COLORS.silver);
+    // 主体
+    px(x, y, 8*s, 6*s, color);
+    // 高光
+    px(x+s, y+s, 6*s, 1*s, COLORS.white);
+    // 暗色内部
+    px(x+1.5*s, y+2*s, 5*s, 3*s, colorD);
+    // Pin 1 标记
+    px(x+0.5*s, y+0.5*s, 1*s, 1*s, COLORS.coralD);
+  }
+
+  // 绘制电阻
+  function drawResistor(x, y, s, color, colorD){
+    // 引脚
+    px(x, y+2*s, 2*s, 0.8*s, COLORS.silver);
+    px(x+8*s, y+2*s, 2*s, 0.8*s, COLORS.silver);
+    // 主体
+    px(x+2*s, y, 6*s, 4*s, color);
+    // 高光
+    px(x+2*s, y, 6*s, 0.8*s, COLORS.white);
+    // 色环
+    px(x+3*s, y, 0.8*s, 4*s, COLORS.coralD);
+    px(x+4.5*s, y, 0.8*s, 4*s, COLORS.yeloD);
+    px(x+6*s, y, 0.8*s, 4*s, COLORS.skyD);
+  }
+
+  // 绘制电容
+  function drawCapacitor(x, y, s, color, colorD){
+    // 引脚
+    px(x+2*s, y+5*s, 0.8*s, 1.5*s, COLORS.silver);
+    px(x+4*s, y+5*s, 0.8*s, 1.5*s, COLORS.silver);
+    // 主体（圆柱）
+    px(x+1*s, y, 5*s, 5*s, color);
+    // 顶部高光
+    px(x+1.5*s, y+0.5*s, 4*s, 0.8*s, COLORS.white);
+    // 底部暗色
+    px(x+1*s, y+4*s, 5*s, 1*s, colorD);
+    // 标记
+    px(x+2.5*s, y+2*s, 2*s, 0.8*s, COLORS.white);
+  }
+
+  // 绘制 LED
+  function drawLED(x, y, s, color, colorD){
+    // 引脚
+    px(x+1*s, y+4*s, 0.8*s, 2*s, COLORS.silver);
+    px(x+3*s, y+4*s, 0.8*s, 2*s, COLORS.silver);
+    // 灯泡（半圆）
+    px(x+0.5*s, y, 4*s, 4*s, color);
+    px(x+1*s, y+3*s, 3*s, 1*s, colorD);
+    // 高光
+    px(x+1*s, y+0.5*s, 1*s, 1*s, COLORS.white);
+  }
+
+  // 绘制连接器
+  function drawConnector(x, y, s, color, colorD){
+    // 引脚排
+    for(let i=0;i<6;i++){
+      px(x+i*1.2*s+0.5*s, y+4*s, 0.6*s, 1.5*s, COLORS.silver);
+    }
+    // 主体
+    px(x, y, 8*s, 4*s, color);
+    // 高光
+    px(x, y, 8*s, 0.8*s, COLORS.white);
+    // 凹槽
+    px(x+1*s, y+1.5*s, 6*s, 1.5*s, colorD);
+  }
+
+  // 绘制晶体管
+  function drawTransistor(x, y, s, color, colorD){
+    // 引脚
+    px(x+1.5*s, y+4*s, 0.6*s, 1.5*s, COLORS.silver);
+    px(x+3*s, y+4*s, 0.6*s, 1.5*s, COLORS.silver);
+    px(x+4.5*s, y+4*s, 0.6*s, 1.5*s, COLORS.silver);
+    // 主体（半圆顶）
+    px(x+1*s, y, 4*s, 4*s, color);
+    px(x+1*s, y, 4*s, 1*s, COLORS.white);
+    px(x+1.5*s, y+3*s, 3*s, 1*s, colorD);
+  }
+
+  // 元器件类型配置
+  const TYPES = [
+    {draw:drawIC, w:8, h:7.5, colors:[['mint','mintD'],['sky','skyD'],['lav','lavD'],['yelo','yeloD']]},
+    {draw:drawResistor, w:10, h:4, colors:[['coral','coralD'],['pink','pinkD'],['yelo','yeloD']]},
+    {draw:drawCapacitor, w:6, h:6.5, colors:[['sky','skyD'],['mint','mintD'],['lav','lavD']]},
+    {draw:drawLED, w:5, h:6, colors:[['pink','pinkD'],['coral','coralD'],['yelo','yeloD']]},
+    {draw:drawConnector, w:8, h:5.5, colors:[['yelo','yeloD'],['mint','mintD'],['sky','skyD']]},
+    {draw:drawTransistor, w:6, h:5.5, colors:[['lav','lavD'],['coral','coralD'],['mint','mintD']]}
+  ];
+
+  // 创建漂浮粒子
+  const particles = [];
+  const NUM = 18;
+
+  function spawnParticle(initial){
+    const type = TYPES[Math.floor(Math.random()*TYPES.length)];
+    const colorPair = type.colors[Math.floor(Math.random()*type.colors.length)];
+    const scale = 1.5 + Math.random()*2;
+    return {
+      type: type,
+      scale: scale,
+      x: Math.random()*W,
+      y: initial ? Math.random()*H : H + 30,
+      vy: -(0.15 + Math.random()*0.35),
+      vx: (Math.random()-0.5)*0.2,
+      rot: Math.random()*Math.PI*2,
+      vrot: (Math.random()-0.5)*0.008,
+      alpha: 0.15 + Math.random()*0.2,
+      color: COLORS[colorPair[0]],
+      colorD: COLORS[colorPair[1]],
+      w: type.w * scale,
+      h: type.h * scale
+    };
+  }
+
+  for(let i=0; i<NUM; i++){
+    particles.push(spawnParticle(true));
+  }
+
+  function animate(){
+    ctx.clearRect(0, 0, W, H);
+
+    for(let i=0; i<particles.length; i++){
+      const p = particles[i];
+      p.y += p.vy;
+      p.x += p.vx + Math.sin(p.y*0.01)*0.15;
+      p.rot += p.vrot;
+
+      // 循环
+      if(p.y < -p.h - 20){
+        Object.assign(p, spawnParticle(false));
+      }
+      if(p.x < -p.w-10) p.x = W+10;
+      if(p.x > W+10) p.x = -p.w-10;
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      p.type.draw(ctx, 0, 0, p.scale, p.color, p.colorD);
+      ctx.restore();
+    }
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+// ========== 幻灯片导航 ==========
+(function(){
+  const slides = document.querySelectorAll('.slide');
+  const dotsContainer = document.getElementById('navDots');
+  const counter = document.getElementById('slideCounter');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+  const total = slides.length;
+
+  // 创建导航点
+  slides.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i===0 ? ' active' : '');
+    dot.addEventListener('click', () => goTo(i));
+    dotsContainer.appendChild(dot);
+  });
+  const dots = document.querySelectorAll('.nav-dot');
+
+  function updateUI(){
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'prev');
+      if(i === current) s.classList.add('active');
+      else if(i < current) s.classList.add('prev');
+    });
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+    counter.textContent = `${current+1} / ${total}`;
+    prevBtn.classList.toggle('disabled', current === 0);
+    nextBtn.classList.toggle('disabled', current === total-1);
+
+    // 重置滚动
+    slides[current].scrollTop = 0;
+  }
+
+  function goTo(idx){
+    if(idx < 0 || idx >= total || idx === current) return;
+    current = idx;
+    updateUI();
+  }
+
+  function next(){ if(current < total-1) goTo(current+1); }
+  function prev(){ if(current > 0) goTo(current-1); }
+
+  // 按钮
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  // 键盘
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') next();
+    else if(e.key === 'ArrowLeft' || e.key === 'ArrowUp') prev();
+  });
+
+  // 触摸滑动
+  let touchStartX = 0, touchStartY = 0;
+  const ppt = document.getElementById('ppt');
+  ppt.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, {passive: true});
+  ppt.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if(Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 40){
+      if(dy < 0) next(); else prev();
+    } else if(Math.abs(dx) > 40){
+      if(dx < 0) next(); else prev();
+    }
+  }, {passive: true});
+
+  // 点击区域（左1/3后退，右1/3前进）
+  ppt.addEventListener('click', (e) => {
+    if(e.target.closest('.nav-arrow') || e.target.closest('.nav-dot') || e.target.closest('.brand-row') || e.target.closest('.part-card') || e.target.closest('a')) return;
+    const rect = ppt.getBoundingClientRect();
+    const relX = e.clientX - rect.left;
+    if(relX < rect.width * 0.25) prev();
+    else if(relX > rect.width * 0.75) next();
+  });
+
+  updateUI();
+})();
+</script>
+</body>
+</html>
